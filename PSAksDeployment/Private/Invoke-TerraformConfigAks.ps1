@@ -82,9 +82,12 @@ Function Invoke-TerraformConfigAks {
         Throw 'An error occurred while creating the Terraform plan. For details, please review the Terraform output above.'
     }
 
-    $ApplyCmdString = 'terraform apply -input=false "{0}"' -f $PlanPathJsonEscape
-    $ApplyCmd = [scriptblock]::Create($ApplyCmdString)
+    #$env:TF_LOG="TRACE"
+    #$ApplyCmdString = 'terraform apply -input=false "{0}"' -f $PlanPathJsonEscape
+    $ApplyCmd = [scriptblock]::Create("terraform apply -auto-approve $PlanCmdVars")
+    #$ApplyCmd = [scriptblock]::Create($ApplyCmdString)
     & $ApplyCmd
+    $env:TF_LOG=""
 
     If ( $LASTEXITCODE -eq 1 ) {
         Throw 'An error occurred while applying the Terraform plan. For details, please review the Terraform output above.'

@@ -6,7 +6,7 @@ resource "kubernetes_namespace" "management" {
 
 resource "kubernetes_cluster_role_binding" "dashboard" {
   # Skipping this for production environments, as they shoudn't be managed with an omnipotent dashboard
-  count = "${var.environment == "Prod" ? 0 : 1}"
+  count = var.environment == "Prod" ? 0 : 1
 
   metadata {
     name = "kubernetes-dashboard"
@@ -58,7 +58,7 @@ resource "null_resource" "helm_init" {
     command = "helm init --wait --replicas ${var.tiller_replica_count} --tiller-namespace kube-system --service-account=${kubernetes_service_account.tiller.metadata.0.name}"
   }
 
-  depends_on = ["kubernetes_cluster_role_binding.tiller"]
+  depends_on = [kubernetes_cluster_role_binding.tiller]
 }
 
 resource "null_resource" "helm_repo_update" {
@@ -66,23 +66,23 @@ resource "null_resource" "helm_repo_update" {
     command = "helm repo update"
   }
 
-  depends_on = ["null_resource.helm_init"]
+  depends_on = [null_resource.helm_init]
 }
 
 resource "helm_release" "nginx_ingress" {
   name      = "nginx-ingress"
   chart     = "stable/nginx-ingress"
-  namespace = "${kubernetes_namespace.management.metadata.0.name}"
+  namespace = kubernetes_namespace.management.metadata.0.name
 
   # Giving Azure 10min to create a load-balancer and assign the Public IP to it
   timeout    = "600"
-  depends_on = ["null_resource.helm_repo_update"]
+  depends_on = [null_resource.helm_repo_update]
 
   values = [<<EOF
   controller:
     replicaCount: ${var.ingressctrl_replica_count}
     service:
-      loadBalancerIP: "${var.ingressctrl_ip_address}"
+      loadBalancerIP: ${var.ingressctrl_ip_address}
 EOF
   ]
 }
@@ -91,9 +91,9 @@ resource "helm_release" "prometheus" {
   name       = "prometheus"
   chart      = "stable/prometheus"
   version    = "8.10.3"
-  namespace  = "${kubernetes_namespace.management.metadata.0.name}"
+  namespace  = kubernetes_namespace.management.metadata.0.name
   timeout    = "600"
-  depends_on = ["null_resource.helm_repo_update"]
+  depends_on = [null_resource.helm_repo_update]
 
   values = [<<EOF
   alertmanager:
@@ -120,9 +120,9 @@ resource "helm_release" "cert_manager" {
   // a good way of installing the cert-manager CRDs
   version = "v0.5.2"
 
-  namespace  = "${kubernetes_namespace.management.metadata.0.name}"
+  namespace  = kubernetes_namespace.management.metadata.0.name
   timeout    = "540"
-  depends_on = ["helm_release.nginx_ingress"]
+  depends_on = [helm_release.nginx_ingress]
 
   values = [<<EOF
   ingressShim:
@@ -136,8 +136,8 @@ resource "helm_release" "grafana" {
   name       = "grafana"
   chart      = "stable/grafana"
   version    = "3.3.6"
-  namespace  = "${kubernetes_namespace.management.metadata.0.name}"
-  depends_on = ["helm_release.cert_manager", "helm_release.prometheus"]
+  namespace  = kubernetes_namespace.management.metadata.0.name
+  depends_on = [helm_release.cert_manager, helm_release.prometheus]
 
   values = [<<EOF
   persistence:
@@ -150,7 +150,7 @@ EOF
 resource "helm_release" "cluster_issuer" {
   name       = "cluster-issuer"
   chart      = "..\\..\\Assets\\cluster-issuer"
-  depends_on = ["helm_release.cert_manager"]
+  depends_on = [helm_release.cert_manager]
 
   values = [<<EOF
   email: ${var.letsencrypt_email_address}
@@ -162,28 +162,28 @@ EOF
 data "template_file" "ingress_cert" {
   template = "${file("../../Assets/certificates.yaml.tpl")}"
 
-  vars {
-    ingressctrl_fqdn = "${var.ingressctrl_fqdn}"
-    environment      = "${var.letsencrypt_environment}"
+  vars = {
+    ingressctrl_fqdn = var.ingressctrl_fqdn
+    environment      = var.letsencrypt_environment
   }
 }
 
 resource "local_file" "ingress_cert" {
-  content    = "${data.template_file.ingress_cert.rendered}"
-  filename   = "${var.ingress_cert_yaml_path}"
-  depends_on = ["helm_release.cluster_issuer"]
+  content    = data.template_file.ingress_cert.rendered
+  filename   = var.ingress_cert_yaml_path
+  depends_on = [helm_release.cluster_issuer]
 }
 
 resource "null_resource" "ingress_cert_apply" {
-  triggers {
-    file_content = "${data.template_file.ingress_cert.rendered}"
+  triggers = {
+    file_content = data.template_file.ingress_cert.rendered
   }
 
   provisioner "local-exec" {
     command = "kubectl apply -f ${var.ingress_cert_yaml_path}"
   }
 
-  depends_on = ["local_file.ingress_cert"]
+  depends_on = [local_file.ingress_cert]
 }
 
 resource "null_resource" "ingress_cert_label" {
@@ -192,14 +192,14 @@ resource "null_resource" "ingress_cert_label" {
     interpreter = ["PowerShell", "-NoProfile", "-ExecutionPolicy", "ByPass", "-Command"]
   }
 
-  depends_on = ["null_resource.ingress_cert_apply"]
+  depends_on = [null_resource.ingress_cert_apply]
 }
 
 # To enable the use of a single TLS certificate by ingress resources in different namespaces
 resource "helm_release" "secret_propagator" {
   name       = "secret-propagator"
   chart      = "..\\..\\Assets\\secret-propagator"
-  depends_on = ["null_resource.ingress_cert_label"]
+  depends_on = [null_resource.ingress_cert_label]
 
   values = [<<EOF
 selector:

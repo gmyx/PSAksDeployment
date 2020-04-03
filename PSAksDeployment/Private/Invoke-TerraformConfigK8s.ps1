@@ -70,8 +70,9 @@ Function Invoke-TerraformConfigK8s {
         Throw 'An error occurred while creating the Terraform plan. For details, please review the Terraform output above.'
     }
 
-    $ApplyCmdString = 'terraform apply -input=false "{0}"' -f $PlanPathJsonEscape
-    $ApplyCmd = [scriptblock]::Create($ApplyCmdString)
+    #$ApplyCmdString = 'terraform apply -input=false "{0}"' -f $PlanPathJsonEscape
+    #$ApplyCmd = [scriptblock]::Create($ApplyCmdString)
+    $ApplyCmd = [scriptblock]::Create("terraform apply -auto-approve $PlanCmdVars")
     & $ApplyCmd
 
     If ( $LASTEXITCODE -eq 1 ) {
