@@ -34,13 +34,19 @@ resource "azurerm_kubernetes_cluster" "aks" {
   dns_prefix          = var.cluster_name
   kubernetes_version  = var.kubernetes_version
 
-  agent_pool_profile {
-    name            = "agentpool"
-    count           = var.agent_count
-    vm_size         = var.agent_vm_size
-    os_type         = "Linux"
-    os_disk_size_gb = var.os_disk_size_GB
-    max_pods        = var.agent_max_pods
+  # agent_pool_profile {
+  #  name            = "agentpool"
+  #  count           = var.agent_count
+  #  vm_size         = var.agent_vm_size
+  #  os_type         = "Linux"
+  #  os_disk_size_gb = var.os_disk_size_GB
+  #  max_pods        = var.agent_max_pods
+  # }
+
+  default_node_pool {
+      name            = "agentpool"
+      node_count      = var.agent_count
+      vm_size         = "Standard_DS1_v2"
   }
 
   service_principal {

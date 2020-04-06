@@ -18,6 +18,6 @@ Do {
     $SecretIsPresent = & kubectl get secret $SecretName -n $Namespace --ignore-not-found
     $LoopIteration++
 }
-Until ( $SecretIsPresent -or ($LoopIteration -gt 10) )
+Until ( $SecretIsPresent -or ($LoopIteration -gt 20) )
 
 & kubectl label secret $SecretName -n $Namespace propagate-to-ns=true

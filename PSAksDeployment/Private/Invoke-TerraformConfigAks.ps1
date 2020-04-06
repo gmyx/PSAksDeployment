@@ -87,7 +87,6 @@ Function Invoke-TerraformConfigAks {
     $ApplyCmd = [scriptblock]::Create("terraform apply -auto-approve $PlanCmdVars")
     #$ApplyCmd = [scriptblock]::Create($ApplyCmdString)
     & $ApplyCmd
-    $env:TF_LOG=""
 
     If ( $LASTEXITCODE -eq 1 ) {
         Throw 'An error occurred while applying the Terraform plan. For details, please review the Terraform output above.'
